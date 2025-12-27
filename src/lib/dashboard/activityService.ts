@@ -304,8 +304,8 @@ export class ActivityService {
   /**
    * Get human-readable title for activity
    */
-  private getActivityTitle(type: ActivityType, action: string): string {
-    const titleMap: Record<ActivityType, string> = {
+  private getActivityTitle(type: string, action: string): string {
+    const titleMap: Record<string, string> = {
       user_login: 'User Login',
       user_logout: 'User Logout',
       profile_update: 'Profile Updated',
@@ -326,10 +326,10 @@ export class ActivityService {
    * Get human-readable description for activity
    */
   private getActivityDescription(
-    type: ActivityType, 
+    type: string, 
     action: string, 
-    resource?: string, 
-    details?: Record<string, unknown>
+    resource?: string | null, 
+    details?: any
   ): string {
     switch (type) {
       case 'user_login':
@@ -363,7 +363,7 @@ export class ActivityService {
   /**
    * Get activity status based on type and details
    */
-  private getActivityStatus(type: ActivityType, details?: Record<string, unknown>): 'success' | 'error' | 'warning' | undefined {
+  private getActivityStatus(type: string, details?: any): 'success' | 'error' | 'warning' | undefined {
     if (details?.status) {
       return details.status as 'success' | 'error' | 'warning';
     }
@@ -492,7 +492,7 @@ export class ActivityService {
   clearActivityCache(userId?: string): void {
     if (userId) {
       // Clear cache entries for specific user
-      for (const [key] of this.activityCache) {
+      for (const [key] of Array.from(this.activityCache)) {
         if (key.startsWith(userId)) {
           this.activityCache.delete(key);
         }
@@ -529,7 +529,7 @@ export class ActivityService {
       });
 
       // Clear cache for affected users
-      const userIds = [...new Set(activities.map(a => a.userId))];
+      const userIds = Array.from(new Set(activities.map(a => a.userId)));
       userIds.forEach(userId => this.clearActivityCache(userId));
     } catch (error) {
       console.error('Error batch logging activities:', error);

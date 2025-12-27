@@ -60,13 +60,13 @@ export interface UserSettings {
 export interface ActivityLog {
   id: string;
   userId: string;
-  sessionId?: string;
-  type: ActivityType;
-  resource?: string;
+  sessionId?: string | null;
+  type: string; // Changed from ActivityType to string for flexibility
+  resource?: string | null;
   action: string;
-  details?: Record<string, unknown>;
-  ipAddress?: string;
-  userAgent?: string;
+  details?: any; // Use any for maximum flexibility with Prisma JsonValue
+  ipAddress?: string | null;
+  userAgent?: string | null;
   timestamp: Date;
 }
 
@@ -78,7 +78,7 @@ export type ActivityType =
 
 export interface Activity {
   id: string;
-  type: ActivityType;
+  type: string; // Changed from ActivityType to string for consistency
   title: string;
   description: string;
   timestamp: Date;

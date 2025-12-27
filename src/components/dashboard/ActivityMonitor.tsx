@@ -93,8 +93,8 @@ export function ActivityMonitor({
     setFilteredActivities(filtered);
   };
 
-  const getActivityIcon = (type: ActivityType): string => {
-    const iconMap: Record<ActivityType, string> = {
+  const getActivityIcon = (type: string): string => {
+    const iconMap: Record<string, string> = {
       user_login: '🔐',
       user_logout: '🚪',
       profile_update: '👤',

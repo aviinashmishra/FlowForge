@@ -5,14 +5,14 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  avatar?: string;
+  avatar?: string | null;
   verified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
 // Extended user interface for dashboard features
-export { ExtendedUser } from './dashboard';
+export type { ExtendedUser } from './dashboard';
 
 export interface AuthResult {
   success: boolean;

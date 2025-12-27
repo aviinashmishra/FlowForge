@@ -304,7 +304,7 @@ export class StatisticsService {
           type: 'pipeline_executed',
           details: {
             path: ['dataProcessed'],
-            not: null,
+            not: undefined,
           },
         },
         select: {
@@ -422,7 +422,7 @@ export class StatisticsService {
   /**
    * Record system metric
    */
-  async recordMetric(name: string, value: number, unit?: string, metadata?: Record<string, unknown>): Promise<void> {
+  async recordMetric(name: string, value: number, unit?: string, metadata?: any): Promise<void> {
     try {
       await prisma.systemMetric.create({
         data: {

@@ -109,7 +109,7 @@ export function rateLimit(
   const windowStart = now - windowMs;
   
   // Clean up old entries
-  for (const [key, value] of rateLimitMap.entries()) {
+  for (const [key, value] of Array.from(rateLimitMap.entries())) {
     if (value.resetTime < windowStart) {
       rateLimitMap.delete(key);
     }

@@ -536,7 +536,7 @@ export class AnalyticsService {
   clearAnalyticsCache(userId?: string): void {
     if (userId) {
       // Clear cache entries for specific user
-      for (const [key] of this.analyticsCache) {
+      for (const [key] of Array.from(this.analyticsCache)) {
         if (key.startsWith(userId)) {
           this.analyticsCache.delete(key);
         }
