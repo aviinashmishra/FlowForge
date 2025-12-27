@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  firstName String
+  lastName  String
+  password  String
+  avatar    String?
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Profile information
+  bio       String?
+  timezone  String   @default("UTC")
+  language  String   @default("en")
+  
+  // Account metadata
+  accountType        String  @default("free") // free, professional, enterprise
+  subscriptionStatus String  @default("active") // active, inactive, trial
+  lastLoginAt        DateTime?
+  loginCount         Int     @default(0)
+  
+  // Security
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+  
+  // Authentication tokens
+  resetTokens PasswordResetToken[]
+  sessions    UserSession[]
+  
+  // Dashboard relations
+  activityLogs      ActivityLog[]
+  settings          UserSettings?
+  securityQuestions SecurityQuestion[]
+  
+  @@map("users")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("password_reset_tokens")
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_sessions")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  sessionId String?
+  type      String   // user_login, user_logout, profile_update, pipeline_created, etc.
+  resource  String?  // resource being acted upon
+  action    String   // action performed
+  details   Json?    // additional details
+  ipAddress String?
+  userAgent String?
+  timestamp DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, timestamp])
+  @@index([type, timestamp])
+  @@map("activity_logs")
+}
+
+model UserSettings {
+  id     String @id @default(cuid())
+  userId String @unique
+  
+  // Notification preferences
+  emailNotifications     Boolean @default(true)
+  pushNotifications      Boolean @default(true)
+  marketingEmails        Boolean @default(false)
+  securityAlerts         Boolean @default(true)
+  
+  // Privacy settings
+  profileVisibility      String  @default("private") // public, private, friends
+  dataSharing            Boolean @default(false)
+  analyticsOptOut        Boolean @default(false)
+  
+  // Appearance settings
+  theme                  String  @default("light") // light, dark, auto
+  language               String  @default("en")
+  timezone               String  @default("UTC")
+  
+  // Dashboard preferences
+  defaultDashboardView   String  @default("overview") // overview, analytics, pipelines
+  showWelcomeMessage     Boolean @default(true)
+  compactMode            Boolean @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_settings")
+}
+
+model SystemMetric {
+  id        String   @id @default(cuid())
+  name      String   // metric name (e.g., "active_users", "pipeline_executions")
+  value     Float    // metric value
+  unit      String?  // unit of measurement
+  timestamp DateTime @default(now())
+  metadata  Json?    // additional metadata
+  
+  @@index([name, timestamp])
+  @@map("system_metrics")
+}
+
+model SecurityQuestion {
+  id       String @id @default(cuid())
+  userId   String
+  question String
+  answer   String // hashed answer
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("security_questions")
+}

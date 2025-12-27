@@ -22,8 +22,8 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import { PipelineNode, PipelineEdge, NodeType, Position } from '@/types';
-import { CustomNode } from './CustomNode';
-import { CustomEdge } from './CustomEdge';
+import { CustomNode } from '@/components/canvas/CustomNode';
+import { CustomEdge } from '@/components/canvas/CustomEdge';
 
 // Define custom node types
 const nodeTypes: NodeTypes = {
@@ -75,7 +75,7 @@ export function PipelineCanvas({
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
   // Convert our pipeline nodes/edges to ReactFlow format
-  const reactFlowNodes: Node[] = nodes.map(node => ({
+  const reactFlowNodes: Node[] = React.useMemo(() => nodes.map(node => ({
     id: node.id,
     type: node.type,
     position: node.position,
@@ -87,9 +87,9 @@ export function PipelineCanvas({
       onRemove: () => onNodeRemove(node.id),
     },
     selected: false,
-  }));
+  })), [nodes, onNodeRemove]);
 
-  const reactFlowEdges: Edge[] = edges.map(edge => ({
+  const reactFlowEdges: Edge[] = React.useMemo(() => edges.map(edge => ({
     id: edge.id,
     source: edge.source,
     target: edge.target,
@@ -98,10 +98,10 @@ export function PipelineCanvas({
     animated: edge.animated || false,
     style: edge.style,
     type: 'default',
-  }));
+  })), [edges]);
 
-  const [rfNodes, setNodes, onNodesChangeInternal] = useNodesState(reactFlowNodes);
-  const [rfEdges, setEdges, onEdgesChangeInternal] = useEdgesState(reactFlowEdges);
+  const [rfNodes, setNodes, onNodesChangeInternal] = useNodesState([]);
+  const [rfEdges, setEdges, onEdgesChangeInternal] = useEdgesState([]);
 
   // Update ReactFlow nodes when props change
   React.useEffect(() => {
@@ -117,38 +117,58 @@ export function PipelineCanvas({
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChangeInternal(changes);
     
-    // Convert back to our pipeline node format
-    const updatedNodes: PipelineNode[] = rfNodes.map(rfNode => {
-      const originalNode = nodes.find(n => n.id === rfNode.id);
-      if (!originalNode) return originalNode!;
+    // Get the current nodes after changes are applied
+    setNodes(currentNodes => {
+      // Convert back to our pipeline node format
+      const updatedNodes: PipelineNode[] = [];
       
-      return {
-        ...originalNode,
-        position: rfNode.position,
-      };
-    }).filter(Boolean);
-    
-    onNodesChange(updatedNodes);
-  }, [onNodesChangeInternal, rfNodes, nodes, onNodesChange]);
+      for (const rfNode of currentNodes) {
+        const originalNode = nodes.find(n => n.id === rfNode.id);
+        if (originalNode) {
+          updatedNodes.push({
+            ...originalNode,
+            position: rfNode.position,
+          });
+        }
+      }
+      
+      // Only call onNodesChange if there are actual changes
+      if (updatedNodes.length > 0) {
+        onNodesChange(updatedNodes);
+      }
+      
+      return currentNodes;
+    });
+  }, [onNodesChangeInternal, nodes, onNodesChange]);
 
   // Handle edge changes and convert back to our format
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
     onEdgesChangeInternal(changes);
     
-    // Convert back to our pipeline edge format
-    const updatedEdges: PipelineEdge[] = rfEdges.map(rfEdge => {
-      const originalEdge = edges.find(e => e.id === rfEdge.id);
-      if (!originalEdge) return originalEdge!;
+    // Get the current edges after changes are applied
+    setEdges(currentEdges => {
+      // Convert back to our pipeline edge format
+      const updatedEdges: PipelineEdge[] = [];
       
-      return {
-        ...originalEdge,
-        animated: rfEdge.animated,
-        style: rfEdge.style as Record<string, unknown> | undefined,
-      };
-    }).filter(Boolean);
-    
-    onEdgesChange(updatedEdges);
-  }, [onEdgesChangeInternal, rfEdges, edges, onEdgesChange]);
+      for (const rfEdge of currentEdges) {
+        const originalEdge = edges.find(e => e.id === rfEdge.id);
+        if (originalEdge) {
+          updatedEdges.push({
+            ...originalEdge,
+            animated: rfEdge.animated || originalEdge.animated,
+            style: (rfEdge.style as Record<string, unknown>) || originalEdge.style,
+          });
+        }
+      }
+      
+      // Only call onEdgesChange if there are actual changes
+      if (updatedEdges.length > 0) {
+        onEdgesChange(updatedEdges);
+      }
+      
+      return currentEdges;
+    });
+  }, [onEdgesChangeInternal, edges, onEdgesChange]);
 
   // Handle new connections
   const handleConnect = useCallback((connection: Connection) => {
