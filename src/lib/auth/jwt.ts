@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import { sign, verify } from 'jsonwebtoken';
 import { User } from '../../types/auth';
 
 export interface JWTPayload {
@@ -33,7 +33,7 @@ class JWTService {
       email: user.email,
     };
 
-    return jwt.sign(payload, this.secret, {
+    return sign(payload, this.secret, {
       expiresIn: this.expiresIn,
       issuer: 'flowforge-auth',
       audience: 'flowforge-app',
@@ -42,7 +42,7 @@ class JWTService {
 
   validateToken(token: string): TokenValidationResult {
     try {
-      const payload = jwt.verify(token, this.secret, {
+      const payload = verify(token, this.secret, {
         issuer: 'flowforge-auth',
         audience: 'flowforge-app',
       }) as JWTPayload;

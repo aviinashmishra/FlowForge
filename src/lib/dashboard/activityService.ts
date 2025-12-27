@@ -2,8 +2,11 @@ import { prisma } from '../prisma';
 import { ActivityLog, Activity, ActivityType } from '../../types/dashboard';
 
 export class ActivityService {
+  private activityCache = new Map<string, { data: Activity[]; timestamp: number }>();
+  private readonly CACHE_TTL = 2 * 60 * 1000; // 2 minutes for activity data
+
   /**
-   * Log user activity
+   * Log user activity with enhanced metadata
    */
   async logActivity(
     userId: string,
@@ -16,6 +19,14 @@ export class ActivityService {
     userAgent?: string
   ): Promise<void> {
     try {
+      // Enhance details with additional context
+      const enhancedDetails = {
+        ...details,
+        timestamp: new Date().toISOString(),
+        userAgent: userAgent || 'Unknown',
+        sessionId: sessionId || 'Unknown',
+      };
+
       await prisma.activityLog.create({
         data: {
           userId,
@@ -23,11 +34,14 @@ export class ActivityService {
           type,
           resource,
           action,
-          details,
+          details: enhancedDetails,
           ipAddress,
           userAgent,
         },
       });
+
+      // Clear cache for this user to ensure fresh data
+      this.clearActivityCache(userId);
     } catch (error) {
       console.error('Error logging activity:', error);
       // Don't throw - activity logging shouldn't break the application
@@ -35,20 +49,91 @@ export class ActivityService {
   }
 
   /**
-   * Get recent activities for a user
+   * Get recent activities for a user with caching
    */
   async getRecentActivities(userId: string, limit: number = 50): Promise<Activity[]> {
     try {
+      const cacheKey = `${userId}-recent-${limit}`;
+      const cached = this.activityCache.get(cacheKey);
+      
+      if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+        return cached.data;
+      }
+
       const activityLogs = await prisma.activityLog.findMany({
         where: { userId },
         orderBy: { timestamp: 'desc' },
         take: limit,
       });
 
-      return activityLogs.map(log => this.formatActivity(log));
+      const activities = activityLogs.map(log => this.formatActivity(log));
+      
+      // Cache the results
+      this.activityCache.set(cacheKey, { data: activities, timestamp: Date.now() });
+
+      return activities;
     } catch (error) {
       console.error('Error fetching recent activities:', error);
       return [];
+    }
+  }
+
+  /**
+   * Get filtered activities with advanced filtering
+   */
+  async getFilteredActivities(
+    userId: string,
+    filters: {
+      types?: ActivityType[];
+      dateRange?: { start: Date; end: Date };
+      search?: string;
+      status?: 'success' | 'error' | 'warning';
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<{ activities: Activity[]; total: number }> {
+    try {
+      const where: any = { userId };
+
+      if (filters.types && filters.types.length > 0) {
+        where.type = { in: filters.types };
+      }
+
+      if (filters.dateRange) {
+        where.timestamp = {
+          gte: filters.dateRange.start,
+          lte: filters.dateRange.end,
+        };
+      }
+
+      if (filters.search) {
+        where.OR = [
+          { action: { contains: filters.search, mode: 'insensitive' } },
+          { resource: { contains: filters.search, mode: 'insensitive' } },
+        ];
+      }
+
+      const [activityLogs, total] = await Promise.all([
+        prisma.activityLog.findMany({
+          where,
+          orderBy: { timestamp: 'desc' },
+          take: filters.limit || 50,
+          skip: filters.offset || 0,
+        }),
+        prisma.activityLog.count({ where }),
+      ]);
+
+      let activities = activityLogs.map(log => this.formatActivity(log));
+
+      // Apply status filter after formatting (since status is derived)
+      if (filters.status) {
+        activities = activities.filter(activity => activity.status === filters.status);
+      }
+
+      return { activities, total };
+    } catch (error) {
+      console.error('Error fetching filtered activities:', error);
+      return { activities: [], total: 0 };
     }
   }
 
@@ -296,6 +381,127 @@ export class ActivityService {
   }
 
   /**
+   * Get activity analytics and insights
+   */
+  async getActivityAnalytics(userId: string, days: number = 30): Promise<{
+    totalActivities: number;
+    activityByType: Record<ActivityType, number>;
+    activityByDay: Array<{ date: string; count: number }>;
+    mostActiveHours: Array<{ hour: number; count: number }>;
+    topResources: Array<{ resource: string; count: number }>;
+  }> {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      const activities = await prisma.activityLog.findMany({
+        where: {
+          userId,
+          timestamp: { gte: startDate },
+        },
+        select: {
+          type: true,
+          timestamp: true,
+          resource: true,
+        },
+      });
+
+      const totalActivities = activities.length;
+
+      // Activity by type
+      const activityByType: Record<string, number> = {};
+      activities.forEach(activity => {
+        activityByType[activity.type] = (activityByType[activity.type] || 0) + 1;
+      });
+
+      // Activity by day
+      const activityByDay = new Map<string, number>();
+      activities.forEach(activity => {
+        const date = activity.timestamp.toISOString().split('T')[0];
+        activityByDay.set(date, (activityByDay.get(date) || 0) + 1);
+      });
+
+      // Most active hours
+      const activityByHour = new Map<number, number>();
+      activities.forEach(activity => {
+        const hour = activity.timestamp.getHours();
+        activityByHour.set(hour, (activityByHour.get(hour) || 0) + 1);
+      });
+
+      // Top resources
+      const resourceCounts = new Map<string, number>();
+      activities.forEach(activity => {
+        if (activity.resource) {
+          resourceCounts.set(activity.resource, (resourceCounts.get(activity.resource) || 0) + 1);
+        }
+      });
+
+      return {
+        totalActivities,
+        activityByType: activityByType as Record<ActivityType, number>,
+        activityByDay: Array.from(activityByDay.entries())
+          .map(([date, count]) => ({ date, count }))
+          .sort((a, b) => a.date.localeCompare(b.date)),
+        mostActiveHours: Array.from(activityByHour.entries())
+          .map(([hour, count]) => ({ hour, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5),
+        topResources: Array.from(resourceCounts.entries())
+          .map(([resource, count]) => ({ resource, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10),
+      };
+    } catch (error) {
+      console.error('Error fetching activity analytics:', error);
+      return {
+        totalActivities: 0,
+        activityByType: {} as Record<ActivityType, number>,
+        activityByDay: [],
+        mostActiveHours: [],
+        topResources: [],
+      };
+    }
+  }
+
+  /**
+   * Get security-related activities
+   */
+  async getSecurityActivities(userId: string, limit: number = 20): Promise<Activity[]> {
+    const securityTypes: ActivityType[] = ['user_login', 'user_logout', 'security_event', 'settings_changed'];
+    
+    try {
+      const activityLogs = await prisma.activityLog.findMany({
+        where: {
+          userId,
+          type: { in: securityTypes },
+        },
+        orderBy: { timestamp: 'desc' },
+        take: limit,
+      });
+
+      return activityLogs.map(log => this.formatActivity(log));
+    } catch (error) {
+      console.error('Error fetching security activities:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Clear activity cache
+   */
+  clearActivityCache(userId?: string): void {
+    if (userId) {
+      // Clear cache entries for specific user
+      for (const [key] of this.activityCache) {
+        if (key.startsWith(userId)) {
+          this.activityCache.delete(key);
+        }
+      }
+    } else {
+      this.activityCache.clear();
+    }
+  }
+  /**
    * Batch log multiple activities
    */
   async logBatchActivities(activities: Array<{
@@ -309,9 +515,22 @@ export class ActivityService {
     userAgent?: string;
   }>): Promise<void> {
     try {
+      const enhancedActivities = activities.map(activity => ({
+        ...activity,
+        details: {
+          ...activity.details,
+          timestamp: new Date().toISOString(),
+          batchLogged: true,
+        },
+      }));
+
       await prisma.activityLog.createMany({
-        data: activities,
+        data: enhancedActivities,
       });
+
+      // Clear cache for affected users
+      const userIds = [...new Set(activities.map(a => a.userId))];
+      userIds.forEach(userId => this.clearActivityCache(userId));
     } catch (error) {
       console.error('Error batch logging activities:', error);
     }

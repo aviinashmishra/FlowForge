@@ -350,7 +350,7 @@ function generateMockActivities(count: number): Activity[] {
   const activities: Activity[] = [];
   const types: ActivityType[] = [
     'user_login', 'user_logout', 'profile_update', 'pipeline_created',
-    'pipeline_updated', 'pipeline_executed', 'settings_changed', 'security_event'
+    'pipeline_updated', 'pipeline_deleted', 'pipeline_executed', 'settings_changed', 'security_event'
   ];
 
   const templates = {
@@ -359,6 +359,7 @@ function generateMockActivities(count: number): Activity[] {
     profile_update: { title: 'Profile Updated', description: 'Updated profile information' },
     pipeline_created: { title: 'Pipeline Created', description: 'Created new data pipeline' },
     pipeline_updated: { title: 'Pipeline Updated', description: 'Modified pipeline configuration' },
+    pipeline_deleted: { title: 'Pipeline Deleted', description: 'Removed data pipeline' },
     pipeline_executed: { title: 'Pipeline Executed', description: 'Pipeline execution completed' },
     settings_changed: { title: 'Settings Changed', description: 'Updated account settings' },
     security_event: { title: 'Security Event', description: 'Security alert triggered' },

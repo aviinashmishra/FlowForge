@@ -12,6 +12,7 @@ interface SimpleInputProps {
   autoComplete?: string;
   disabled?: boolean;
   placeholder?: string;
+  maxLength?: number;
 }
 
 export function SimpleInput({
@@ -24,6 +25,7 @@ export function SimpleInput({
   autoComplete,
   disabled = false,
   placeholder,
+  maxLength,
 }: SimpleInputProps) {
   return (
     <div className="space-y-2">
@@ -40,6 +42,7 @@ export function SimpleInput({
         autoComplete={autoComplete}
         disabled={disabled}
         placeholder={placeholder}
+        maxLength={maxLength}
         className={`
           w-full px-4 py-3 rounded-lg border-2 transition-all duration-200
           bg-white text-gray-900 placeholder-gray-400

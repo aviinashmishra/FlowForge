@@ -160,7 +160,7 @@ export function SimpleSignInForm() {
       {/* Sign Up Link */}
       <div className="text-center pt-6 border-t border-gray-200">
         <p className="text-gray-600 text-sm">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link
             href="/auth/signup"
             className="text-blue-600 hover:text-blue-700 transition-colors duration-200 font-semibold"

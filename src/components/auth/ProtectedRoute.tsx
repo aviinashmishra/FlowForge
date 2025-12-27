@@ -38,7 +38,7 @@ export function ProtectedRoute({
     );
   }
 
-  // Don't render children if auth requirements aren't met
+  // Don&apos;t render children if auth requirements aren&apos;t met
   if (requireAuth && !user) {
     return null;
   }

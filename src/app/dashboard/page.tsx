@@ -101,23 +101,71 @@ export default function DashboardPage() {
   return (
     <ProtectedRoute requireAuth={true}>
       <DashboardLayout>
-        <div className="p-6 sm:p-8">
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Welcome back, {user?.firstName}!
-            </h1>
-            <p className="text-gray-600">
-              Here's what's happening with your pipelines today.
-            </p>
+        {/* Hero Section with Gradient Background */}
+        <div className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 overflow-hidden">
+          <div className="absolute inset-0 bg-black opacity-10"></div>
+          <div className="absolute inset-0">
+            <div className="absolute top-0 left-0 w-72 h-72 bg-white opacity-5 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-white opacity-5 rounded-full translate-x-1/2 translate-y-1/2"></div>
           </div>
+          <div className="relative p-6 sm:p-8">
+            <div className="mb-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold text-white mb-2">
+                    Welcome back, {user?.firstName}! 👋
+                  </h1>
+                  <p className="text-blue-100 text-lg">
+                    Here&apos;s what&apos;s happening with your pipelines today.
+                  </p>
+                </div>
+                <div className="hidden md:block">
+                  <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-2xl p-4">
+                    <div className="text-white text-center">
+                      <div className="text-2xl font-bold">{new Date().getDate()}</div>
+                      <div className="text-sm opacity-80">{new Date().toLocaleDateString('en-US', { month: 'short' })}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {stats.map((stat, index) => (
-              <StatsCard key={index} {...stat} />
-            ))}
+            {/* Enhanced Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {stats.map((stat, index) => (
+                <div key={index} className="group">
+                  <div className="bg-white bg-opacity-10 backdrop-blur-sm border border-white border-opacity-20 rounded-2xl p-6 hover:bg-opacity-20 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-blue-100 text-sm font-medium mb-2">{stat.title}</p>
+                        <p className="text-white text-3xl font-bold mb-1">{stat.value}</p>
+                        {stat.change && (
+                          <p className={`text-sm font-medium flex items-center ${
+                            stat.changeType === 'increase' ? 'text-green-300' : 'text-blue-200'
+                          }`}>
+                            {stat.changeType === 'increase' && (
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                              </svg>
+                            )}
+                            {stat.change}
+                          </p>
+                        )}
+                      </div>
+                      <div className="bg-white bg-opacity-20 p-3 rounded-xl group-hover:bg-opacity-30 transition-all duration-300">
+                        <div className="text-white">
+                          {stat.icon}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+        </div>
+
+        <div className="p-6 sm:p-8 bg-gray-50 min-h-screen -mt-4 rounded-t-3xl relative z-10">
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

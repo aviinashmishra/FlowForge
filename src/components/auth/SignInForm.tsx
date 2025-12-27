@@ -195,7 +195,7 @@ export function SignInForm() {
         className="text-center pt-4 border-t border-gray-700"
       >
         <p className="text-gray-400 text-sm">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link
             href="/auth/signup"
             className="text-blue-400 hover:text-blue-300 transition-colors font-medium"

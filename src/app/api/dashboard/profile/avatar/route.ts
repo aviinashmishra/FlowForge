@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '../../../../../lib/auth/middleware';
+import { requireAuth } from '../../../../../lib/auth/middleware';
 import { prisma } from '../../../../../lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await verifyAuth(request);
-    if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const user = await requireAuth(request);
 
     const formData = await request.formData();
     const file = formData.get('avatar') as File;
@@ -46,11 +40,11 @@ export async function POST(request: NextRequest) {
     // 3. Update the user's avatar field with the URL
     
     // For now, we'll simulate this process
-    const mockAvatarUrl = `https://example.com/avatars/${authResult.user.id}-${Date.now()}.jpg`;
+    const mockAvatarUrl = `https://example.com/avatars/${user.id}-${Date.now()}.jpg`;
 
     // Update user's avatar in database
     const updatedUser = await prisma.user.update({
-      where: { id: authResult.user.id },
+      where: { id: user.id },
       data: { avatar: mockAvatarUrl },
       select: {
         id: true,
@@ -83,17 +77,11 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const authResult = await verifyAuth(request);
-    if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const user = await requireAuth(request);
 
     // Remove avatar from user
     const updatedUser = await prisma.user.update({
-      where: { id: authResult.user.id },
+      where: { id: user.id },
       data: { avatar: null },
       select: {
         id: true,

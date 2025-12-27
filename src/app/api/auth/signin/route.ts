@@ -18,7 +18,7 @@ function validateSignInData(data: any): data is SignInRequest {
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting - more restrictive for signin to prevent brute force
-    const clientIP = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+    const clientIP = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     if (!rateLimit(`signin:${clientIP}`, 10, 15 * 60 * 1000)) { // 10 attempts per 15 minutes
       return NextResponse.json(
         { success: false, error: 'Too many signin attempts. Please try again later.' },

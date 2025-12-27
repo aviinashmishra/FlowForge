@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '../../../../lib/auth/middleware';
+import { requireAuth } from '../../../../lib/auth/middleware';
 import { prisma } from '../../../../lib/prisma';
 import { hash, compare } from 'bcryptjs';
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await verifyAuth(request);
-    if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const user = await requireAuth(request);
 
-    const user = await prisma.user.findUnique({
-      where: { id: authResult.user.id },
+    const userProfile = await prisma.user.findUnique({
+      where: { id: user.id },
       select: {
         id: true,
         email: true,
@@ -35,7 +29,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (!user) {
+    if (!userProfile) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
         { status: 404 }
@@ -44,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: user,
+      data: userProfile,
     });
   } catch (error) {
     console.error('Profile fetch error:', error);
@@ -57,13 +51,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const authResult = await verifyAuth(request);
-    if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const user = await requireAuth(request);
 
     const body = await request.json();
     
@@ -101,7 +89,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: authResult.user.id },
+      where: { id: user.id },
       data: updateData,
       select: {
         id: true,
@@ -140,13 +128,7 @@ export async function PUT(request: NextRequest) {
 // Password change endpoint
 export async function PATCH(request: NextRequest) {
   try {
-    const authResult = await verifyAuth(request);
-    if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const user = await requireAuth(request);
 
     const body = await request.json();
     const { currentPassword, newPassword } = body;
@@ -174,12 +156,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Get current user with password
-    const user = await prisma.user.findUnique({
-      where: { id: authResult.user.id },
+    const userWithPassword = await prisma.user.findUnique({
+      where: { id: user.id },
       select: { id: true, password: true },
     });
 
-    if (!user) {
+    if (!userWithPassword) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
         { status: 404 }
@@ -187,7 +169,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Verify current password
-    const isCurrentPasswordValid = await compare(currentPassword, user.password);
+    const isCurrentPasswordValid = await compare(currentPassword, userWithPassword.password);
     if (!isCurrentPasswordValid) {
       return NextResponse.json(
         { success: false, error: 'Current password is incorrect' },
@@ -196,7 +178,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Check if new password is different from current
-    const isSamePassword = await compare(newPassword, user.password);
+    const isSamePassword = await compare(newPassword, userWithPassword.password);
     if (isSamePassword) {
       return NextResponse.json(
         { success: false, error: 'New password must be different from current password' },
@@ -208,7 +190,7 @@ export async function PATCH(request: NextRequest) {
     const hashedNewPassword = await hash(newPassword, 12);
     
     await prisma.user.update({
-      where: { id: authResult.user.id },
+      where: { id: user.id },
       data: { password: hashedNewPassword },
     });
 

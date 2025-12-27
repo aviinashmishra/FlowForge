@@ -43,7 +43,7 @@ async function sendPasswordResetEmail(email: string, token: string): Promise<voi
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting - prevent abuse of password reset
-    const clientIP = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+    const clientIP = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     if (!rateLimit(`reset:${clientIP}`, 3, 15 * 60 * 1000)) { // 3 attempts per 15 minutes
       return NextResponse.json(
         { success: false, error: 'Too many password reset attempts. Please try again later.' },

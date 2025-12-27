@@ -42,7 +42,7 @@ function validatePasswordStrength(password: string): { valid: boolean; message?:
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
-    const clientIP = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+    const clientIP = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     if (!rateLimit(`signup:${clientIP}`, 5, 15 * 60 * 1000)) { // 5 attempts per 15 minutes
       return NextResponse.json(
         { success: false, error: 'Too many signup attempts. Please try again later.' },

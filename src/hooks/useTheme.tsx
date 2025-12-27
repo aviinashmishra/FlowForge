@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 
 type Theme = 'light' | 'dark' | 'auto';
 
@@ -95,8 +95,6 @@ export function useTheme(): ThemeContextValue {
 }
 
 // Theme provider component (optional, for context-based theme management)
-import React, { createContext, useContext } from 'react';
-
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 interface ThemeProviderProps {

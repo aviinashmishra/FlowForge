@@ -73,7 +73,7 @@ export default function FeatureShowcase({ isVisible = false }: FeatureShowcasePr
           if (entry.isIntersecting) {
             const featureId = entry.target.getAttribute('data-feature-id');
             if (featureId) {
-              setVisibleFeatures(prev => new Set([...prev, featureId]));
+              setVisibleFeatures(prev => new Set([...Array.from(prev), featureId]));
             }
           }
         });

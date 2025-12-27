@@ -1,36 +1,53 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { SimpleInput } from '../auth/SimpleInput';
 import { SimpleButton } from '../auth/SimpleButton';
 import { useAuth } from '../../contexts/AuthContext';
-import { ProfileFormData, FileUploadResult } from '../../types/dashboard';
+import { ProfileFormData, FileUploadResult, ExtendedUser } from '../../types/dashboard';
 import { useSuccessToast, useErrorToast } from '../ui/Toast';
 import { useApiErrorHandler } from '../../hooks/useErrorHandler';
 
 interface ProfileManagerProps {
   onUpdate?: (updates: any) => void;
+  showAccountInfo?: boolean;
 }
 
-export function ProfileManager({ onUpdate }: ProfileManagerProps) {
+export function ProfileManager({ onUpdate, showAccountInfo = true }: ProfileManagerProps) {
   const { user, updateProfile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const showSuccessToast = useSuccessToast();
+  const showErrorToast = useErrorToast();
   const { handleApiError } = useApiErrorHandler();
   
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const [formData, setFormData] = useState<ProfileFormData>({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
-    bio: '',
-    timezone: 'UTC',
-    language: 'en',
+    bio: (user as ExtendedUser)?.bio || '',
+    timezone: (user as ExtendedUser)?.timezone || 'UTC',
+    language: (user as ExtendedUser)?.language || 'en',
   });
+
+  // Update form data when user changes
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        bio: (user as ExtendedUser)?.bio || '',
+        timezone: (user as ExtendedUser)?.timezone || 'UTC',
+        language: (user as ExtendedUser)?.language || 'en',
+      });
+    }
+  }, [user]);
 
   const handleInputChange = (field: keyof ProfileFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -45,10 +62,14 @@ export function ProfileManager({ onUpdate }: ProfileManagerProps) {
 
     if (!formData.firstName.trim()) {
       newErrors.firstName = 'First name is required';
+    } else if (formData.firstName.length < 2) {
+      newErrors.firstName = 'First name must be at least 2 characters';
     }
 
     if (!formData.lastName.trim()) {
       newErrors.lastName = 'Last name is required';
+    } else if (formData.lastName.length < 2) {
+      newErrors.lastName = 'Last name must be at least 2 characters';
     }
 
     if (!formData.email) {
@@ -59,6 +80,15 @@ export function ProfileManager({ onUpdate }: ProfileManagerProps) {
 
     if (formData.bio && formData.bio.length > 500) {
       newErrors.bio = 'Bio must be less than 500 characters';
+    }
+
+    // Validate names don't contain numbers or special characters
+    const nameRegex = /^[a-zA-Z\s'-]+$/;
+    if (formData.firstName && !nameRegex.test(formData.firstName)) {
+      newErrors.firstName = 'First name can only contain letters, spaces, hyphens, and apostrophes';
+    }
+    if (formData.lastName && !nameRegex.test(formData.lastName)) {
+      newErrors.lastName = 'Last name can only contain letters, spaces, hyphens, and apostrophes';
     }
 
     setErrors(newErrors);
@@ -113,10 +143,12 @@ export function ProfileManager({ onUpdate }: ProfileManagerProps) {
     const validationResult = validateFile(file);
     if (!validationResult.isValid) {
       setErrors({ avatar: validationResult.error || 'Invalid file' });
+      showErrorToast(validationResult.error || 'Invalid file');
       return;
     }
 
     setIsUploading(true);
+    setUploadProgress(0);
     setErrors(prev => ({ ...prev, avatar: '' }));
 
     try {
@@ -124,41 +156,86 @@ export function ProfileManager({ onUpdate }: ProfileManagerProps) {
       if (uploadResult.success && uploadResult.url) {
         await updateProfile({ avatar: uploadResult.url });
         showSuccessToast('Profile picture updated successfully!');
+        onUpdate?.({ avatar: uploadResult.url });
       } else {
-        setErrors({ avatar: uploadResult.error || 'Upload failed' });
+        const errorMsg = uploadResult.error || 'Upload failed';
+        setErrors({ avatar: errorMsg });
+        showErrorToast(errorMsg);
       }
     } catch (error) {
+      const errorMsg = 'Failed to upload profile picture';
+      setErrors({ avatar: errorMsg });
+      showErrorToast(errorMsg);
       handleApiError(error, '/api/dashboard/profile/avatar');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
   const validateFile = (file: File): { isValid: boolean; error?: string } => {
-    const maxSize = 2 * 1024 * 1024; // 2MB
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
     if (file.size > maxSize) {
-      return { isValid: false, error: 'File size must be less than 2MB' };
+      return { isValid: false, error: 'File size must be less than 5MB' };
     }
 
     if (!allowedTypes.includes(file.type)) {
-      return { isValid: false, error: 'Only JPEG, PNG, and GIF files are allowed' };
+      return { isValid: false, error: 'Only JPEG, PNG, GIF, and WebP files are allowed' };
     }
 
-    return { isValid: true };
+    // Check image dimensions
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        if (img.width < 100 || img.height < 100) {
+          resolve({ isValid: false, error: 'Image must be at least 100x100 pixels' });
+        } else if (img.width > 2000 || img.height > 2000) {
+          resolve({ isValid: false, error: 'Image must be smaller than 2000x2000 pixels' });
+        } else {
+          resolve({ isValid: true });
+        }
+      };
+      img.onerror = () => resolve({ isValid: false, error: 'Invalid image file' });
+      img.src = URL.createObjectURL(file);
+    }) as any;
   };
 
   const uploadProfilePicture = async (file: File): Promise<FileUploadResult> => {
-    // Mock implementation - replace with actual upload logic
     return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          url: `https://example.com/avatars/${Date.now()}.jpg`,
+      // Simulate upload progress
+      const interval = setInterval(() => {
+        setUploadProgress(prev => {
+          const next = prev + 10;
+          if (next >= 100) {
+            clearInterval(interval);
+            // Simulate successful upload
+            setTimeout(() => {
+              resolve({
+                success: true,
+                url: `https://example.com/avatars/${Date.now()}.jpg`,
+              });
+            }, 200);
+          }
+          return next;
         });
-      }, 1000);
+      }, 100);
     });
+  };
+
+  const removeProfilePicture = async () => {
+    setIsLoading(true);
+    try {
+      await updateProfile({ avatar: undefined });
+      showSuccessToast('Profile picture removed successfully!');
+      onUpdate?.({ avatar: undefined });
+    } catch (error) {
+      showErrorToast('Failed to remove profile picture');
+      handleApiError(error, '/api/dashboard/profile/avatar');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const timezones = [
@@ -188,12 +265,60 @@ export function ProfileManager({ onUpdate }: ProfileManagerProps) {
 
   return (
     <div className="space-y-6">
+      {/* Account Information (if enabled) */}
+      {showAccountInfo && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-600">Account Type:</span>
+              <span className="ml-2 font-medium capitalize">
+                {(user as ExtendedUser)?.accountType || 'Free'}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-600">Member Since:</span>
+              <span className="ml-2 font-medium">
+                {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-600">Last Login:</span>
+              <span className="ml-2 font-medium">
+                {(user as ExtendedUser)?.lastLoginAt 
+                  ? new Date((user as ExtendedUser).lastLoginAt!).toLocaleDateString()
+                  : 'N/A'
+                }
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-600">Email Verified:</span>
+              <span className={`ml-2 font-medium ${user?.verified ? 'text-green-600' : 'text-red-600'}`}>
+                {user?.verified ? 'Yes' : 'No'}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-600">Two-Factor Auth:</span>
+              <span className={`ml-2 font-medium ${(user as ExtendedUser)?.twoFactorEnabled ? 'text-green-600' : 'text-gray-600'}`}>
+                {(user as ExtendedUser)?.twoFactorEnabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-600">Login Count:</span>
+              <span className="ml-2 font-medium">
+                {(user as ExtendedUser)?.loginCount || 0}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Profile Picture Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Profile Picture</h2>
         <div className="flex items-center space-x-6">
           <div className="relative">
-            <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+            <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center overflow-hidden shadow-lg">
               {user?.avatar ? (
                 <img 
                   src={user.avatar} 
@@ -208,11 +333,14 @@ export function ProfileManager({ onUpdate }: ProfileManagerProps) {
             </div>
             {isUploading && (
               <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
-                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-1"></div>
+                  <span className="text-xs text-white font-medium">{uploadProgress}%</span>
+                </div>
               </div>
             )}
           </div>
-          <div>
+          <div className="flex-1">
             <input
               ref={fileInputRef}
               type="file"
@@ -220,16 +348,29 @@ export function ProfileManager({ onUpdate }: ProfileManagerProps) {
               onChange={handleFileUpload}
               className="hidden"
             />
-            <SimpleButton 
-              variant="secondary" 
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
-              {isUploading ? 'Uploading...' : 'Change Photo'}
-            </SimpleButton>
+            <div className="flex space-x-3">
+              <SimpleButton 
+                variant="secondary" 
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading || isLoading}
+              >
+                {isUploading ? 'Uploading...' : 'Change Photo'}
+              </SimpleButton>
+              {user?.avatar && (
+                <SimpleButton 
+                  variant="secondary" 
+                  size="sm"
+                  onClick={removeProfilePicture}
+                  disabled={isUploading || isLoading}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  Remove
+                </SimpleButton>
+              )}
+            </div>
             <p className="text-sm text-gray-600 mt-2">
-              JPG, GIF or PNG. Max size of 2MB.
+              JPG, PNG, GIF, or WebP. Max size of 5MB. Minimum 100x100px.
             </p>
             {errors.avatar && (
               <p className="text-sm text-red-600 mt-1">{errors.avatar}</p>

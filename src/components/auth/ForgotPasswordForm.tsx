@@ -62,13 +62,13 @@ export function ForgotPasswordForm() {
         <div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">Check Your Email</h3>
           <p className="text-gray-600 text-sm">
-            We've sent a password reset link to <strong>{email}</strong>
+            We&apos;ve sent a password reset link to <strong>{email}</strong>
           </p>
         </div>
 
         <div className="space-y-4">
           <p className="text-gray-500 text-sm">
-            Didn't receive the email? Check your spam folder or try again.
+            Didn&apos;t receive the email? Check your spam folder or try again.
           </p>
           
           <SimpleButton
