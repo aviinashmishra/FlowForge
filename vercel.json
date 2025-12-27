@@ -1,8 +1,7 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
   "framework": "nextjs",
-  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "installCommand": "npm ci",
   "env": {
     "NODE_ENV": "production"
   },
