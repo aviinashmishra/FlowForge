@@ -10,7 +10,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "deploy-check": "node scripts/deploy-check.js",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "generate-secrets": "node scripts/generate-secrets.js",
+    "setup-env": "node scripts/setup-env.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
