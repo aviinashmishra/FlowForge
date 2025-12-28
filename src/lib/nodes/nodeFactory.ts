@@ -171,6 +171,36 @@ const nodeDefinitions = {
   },
 };
 
+export function validateNodePosition(position: Position): ValidationResult {
+  const errors: string[] = [];
+
+  if (typeof position !== 'object' || position === null) {
+    errors.push('Position must be an object');
+    return { isValid: false, errors };
+  }
+
+  if (typeof position.x !== 'number' || !isFinite(position.x)) {
+    errors.push('Position x must be a finite number');
+  }
+
+  if (typeof position.y !== 'number' || !isFinite(position.y)) {
+    errors.push('Position y must be a finite number');
+  }
+
+  if (position.x < 0) {
+    errors.push('Position x must be non-negative');
+  }
+
+  if (position.y < 0) {
+    errors.push('Position y must be non-negative');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
 export function createNode(type: NodeType, position: Position): PipelineNode {
   const definition = nodeDefinitions[type];
   

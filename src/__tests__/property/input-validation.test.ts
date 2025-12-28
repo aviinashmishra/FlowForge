@@ -37,7 +37,9 @@ function validatePasswordStrength(password: string): { valid: boolean; message?:
 
 // Name validation function
 function validateName(name: string): boolean {
-  return typeof name === 'string' && name.trim().length > 0 && name.trim().length <= 50;
+  if (typeof name !== 'string') return false;
+  const trimmed = name.trim();
+  return trimmed.length > 0 && trimmed.length <= 50 && trimmed === name;
 }
 
 // Test data generators
@@ -80,7 +82,11 @@ const validNameArbitrary = fc.string({ minLength: 1, maxLength: 50 })
 const invalidNameArbitrary = fc.oneof(
   fc.constant(''), // Empty
   fc.constant('   '), // Only whitespace
+  fc.constant(' '), // Single space
+  fc.constant('\t'), // Tab
+  fc.constant('\n'), // Newline
   fc.string({ minLength: 51, maxLength: 100 }), // Too long
+  fc.string({ minLength: 1, maxLength: 50 }).filter(s => s.startsWith(' ') || s.endsWith(' ')), // Leading/trailing whitespace
 );
 
 describe('Input Validation Consistency Properties', () => {
