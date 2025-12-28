@@ -1,0 +1,36 @@
+# Dependencies
+node_modules
+
+# Testing
+coverage
+*.tsbuildinfo
+
+# Environment variables (use Vercel dashboard instead)
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+.tmp
+.temp
+
+# Property tests (temporarily disabled)
+src/__tests__/property/
+
+# Kiro specs (development only)
+.kiro/
